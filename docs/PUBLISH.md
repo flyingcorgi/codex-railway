@@ -9,9 +9,8 @@ Verify with `railway --version`; upgrade with `brew upgrade railway` if needed.
 
 ## Prerequisites
 
-1. **Push this repo to a PUBLIC GitHub repo.** Deployers clone it, and the marketplace card image
-   must be reachable. Replace the `REPLACE_ME` placeholders in `README.md` and `TEMPLATE.md` with
-   the real repo URL.
+1. **A PUBLIC GitHub repo.** Deployers clone it, and the marketplace card image must be reachable.
+   This one lives at <https://github.com/yuting1214/codex-railway>.
 2. **A project with a service linked to that GitHub repo**, with **root directory set to `codex`**
    (the monorepo subdir holding the Dockerfile). A service deployed only via local `railway up` has
    no git source to template.
@@ -40,7 +39,7 @@ railway templates publish <DRAFT_ID> \
   --category AI/ML \
   --description "Run the OpenAI Codex CLI on a persistent Railway box, TUI or browser" \
   --readme-file TEMPLATE.md \
-  --image https://raw.githubusercontent.com/REPLACE_ME/codex-railway/<sha>/assets/card.png \
+  --image https://raw.githubusercontent.com/yuting1214/codex-railway/<sha>/assets/card.png \
   --json
 ```
 

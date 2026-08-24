@@ -54,4 +54,4 @@ build the same agent. Sign in with your ChatGPT plan via `codex login --device-a
 
 One click gives you a persistent Codex box you can reach from a terminal or a browser, with a pinned
 agent version and credentials, repos and session history that outlive every redeploy. Source and
-docs: <https://github.com/REPLACE_ME/codex-railway>.
+docs: <https://github.com/yuting1214/codex-railway>.
