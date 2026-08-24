@@ -97,14 +97,29 @@ box feel unlike a local one.
 The trade-off, stated plainly: the agent can run any command and reach the network **inside this
 container**. Don't leave secrets in the box that you wouldn't hand the agent.
 
-To tighten it, edit `$CODEX_HOME/config.toml`:
+**Don't switch `sandbox_mode` to `workspace-write` here — it cannot work on Railway.** Codex's Linux
+sandbox is implemented with `bubblewrap`, and bwrap can't create a user namespace inside a Railway
+container:
 
-```toml
-sandbox_mode = "workspace-write"
-approval_policy = "on-request"
+```
+$ bwrap --ro-bind / / --dev /dev echo ok
+bwrap: Creating new namespace failed: Operation not permitted
 ```
 
-`bubblewrap` is installed in the image, so that mode is available without a rebuild.
+That's a platform restriction (Railway blocks the syscall regardless of
+`/proc/sys/user/max_user_namespaces`), not something a config change fixes. `codex doctor` will
+happily report a healthy sandbox in `workspace-write` mode and then fail on the first command it
+tries to run, so the failure is worse than it looks.
+
+`danger-full-access` is the only working mode on Railway. If you need real sandboxing, the isolation
+boundary has to be the container itself — deploy a second service for untrusted work rather than
+loosening or tightening this one.
+
+You *can* still raise friction usefully without touching `sandbox_mode`:
+
+```toml
+approval_policy = "on-request"   # ask before running commands; sandboxing stays off
+```
 
 ## 7. Housekeeping
 

@@ -38,41 +38,79 @@ Railway builds amd64, so none of this is a substitute for a live deploy — but 
 
 ---
 
-## 1. ⬜ bubblewrap / sandbox behavior in a Railway container
+## 1. ❌→✅ bubblewrap CANNOT work in a Railway container — resolved, docs corrected
 
-**The one genuine unknown.** Codex on Linux uses `bubblewrap` (bwrap) for `workspace-write`, and
-bwrap needs unprivileged user namespaces — which containers often don't grant. Railway runs
-containers unprivileged.
+**Verified on a live Railway deploy (amd64, Debian 12, `asia-southeast1`).** bwrap cannot create a
+user namespace, so Codex's `workspace-write` sandbox is unavailable on this platform:
 
-- [ ] `bwrap --ro-bind / / --dev /dev echo ok` succeeds inside the deployed container.
-- [ ] If it fails: confirm Codex still runs normally under `sandbox_mode = "danger-full-access"`
-      (the shipped default) and doesn't hard-error on startup.
-- [x] ~~Confirm the exact key spellings `approval_policy` / `sandbox_mode` against the pinned
-      version~~ — done locally via `--strict-config` + control test (see above).
-- [ ] Decide whether `bubblewrap` stays in the image. If bwrap can't work on Railway at all, it's
-      dead weight and `workspace-write` should be documented as unavailable rather than offered.
+```
+$ bwrap --ro-bind / / --dev /dev echo ok
+bwrap: Creating new namespace failed: Operation not permitted
 
-**Fallback if broken:** drop `workspace-write` from the docs; keep the default config as-is. The
-template still works — this only removes an option users were unlikely to pick on a disposable box.
+$ codex sandbox echo hello
+bwrap: Failed to make / slave: Permission denied
+```
 
-## 2. ⬜ `railway ssh --session` + Codex TUI rendering
+This is *not* a missing-kernel-feature problem — the container reports
+`/proc/sys/user/max_user_namespaces = 1573664` and `unprivileged_userns_clone = 1`. Railway blocks
+it at the seccomp/capability layer, so no config change fixes it.
 
-- [ ] `railway ssh --session codex` attaches to the **same** tmux session ttyd is serving (not a
-      second one) — the shared-session claim in the README depends on this.
-- [ ] The Codex TUI renders correctly: box-drawing characters, 256 colours, no mojibake.
-- [ ] Resizing the terminal reflows the TUI (SIGWINCH propagates through Railway's SSH transport).
-- [ ] `TERM`, `LANG`, `LC_ALL` are what `/etc/profile.d/00-codex-env.sh` sets, verified with `env`
-      inside an actual `railway ssh` shell.
-- [ ] Pre-installed tmux is used rather than Railway trying to install its own.
-- [x] ~~Attach-or-create doesn't produce two sessions~~ — verified locally; the entrypoint now
-      starts session `codex` detached at boot so neither door has to create it.
+**The dangerous part:** `codex doctor -c sandbox_mode=workspace-write` reports a *clean* sandbox and
+drops its warning — the failure only shows up when the agent runs its first command. A user
+following "just switch to workspace-write" would get a box that looks healthy and breaks on use.
+
+- [x] `bwrap` test run on the deployed container → fails as above.
+- [x] Under the shipped default, `codex doctor` reports
+      `⚠ sandbox filesystem unrestricted · network enabled` — i.e. the permissive mode is active and
+      accepted, no startup error.
+- [x] ~~Confirm the exact key spellings `approval_policy` / `sandbox_mode`~~ — done locally via
+      `--strict-config` + control test.
+- [x] **Docs corrected** in `config.toml.default`, `USAGE.md` §6, `ARCHITECTURE.md`, `README.md`:
+      `workspace-write` is now documented as *unavailable on Railway* rather than offered.
+- [ ] **Still open:** confirm the agent's normal exec path works under `danger-full-access` — needs
+      auth (item 3). `codex sandbox` fails in *both* modes because that subcommand always sandboxes
+      by definition; that does not prove the normal loop is broken, and doctor suggests it isn't.
+- [ ] **Then decide:** remove `bubblewrap` from the image (dead weight, ~is unusable here) — held
+      until the line above is confirmed, so we don't remove something Codex turns out to need.
+
+## 1b. 🟡 Bonus finding: `ripgrep` is redundant
+
+`codex doctor` shows Codex ships and prefers its **own bundled `rg`**
+(`…/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path/rg`). The apt `ripgrep` in the
+Dockerfile is never used by Codex. Keep it only as a convenience for the human at the shell —
+otherwise drop it alongside `bubblewrap`.
+
+## 2. 🟡 `railway ssh --session` + Codex TUI rendering — mostly verified
+
+- [x] **`railway ssh --session codex` targets the existing session, not a new one.** `tmux ls` before
+      and after shows exactly one session with an unchanged creation timestamp (the boot-created
+      one). The flag's failure message in a non-TTY context is tmux's own
+      `open terminal failed: not a terminal`, confirming it routes into tmux with our session name.
+- [x] **The tmux login shell environment is correct** — captured from the real session via
+      `tmux send-keys printenv` + `capture-pane`:
+      `CODEX_HOME=/workspace/codex`, `LANG`/`LC_ALL=en_US.UTF-8`, `TERM=tmux-256color`, prompt in
+      `/workspace/repos`. So `/etc/profile.d/00-codex-env.sh` is sourced on the path users actually
+      take.
+- [x] Pre-installed tmux is used — Railway did not attempt its own install.
+- [x] `codex doctor` on the box reports `effective locale en_US.UTF-8`, confirming the locale setup.
+- [ ] **Needs a human terminal:** TUI renders correctly (box-drawing, 256 colours, no mojibake) and
+      reflows on resize (SIGWINCH). Not provable from a non-TTY tool session.
+
+> **Note for whoever runs the manual check:** `railway ssh -s <svc> -- <cmd>` mangles any argument
+> containing quotes, pipes, redirects or semicolons (CLI 5.23.1 — an early `bash -lc '…'` probe
+> falsely showed `CODEX_HOME` empty because of this). Multi-word commands with plain flags are fine.
+> To run anything complex, use `tmux send-keys` + `tmux capture-pane -p -t codex`.
 
 **Fallback if broken:** if `--session` doesn't share the session, document the browser and SSH doors
 as independent sessions and drop the "same session" claim.
 
 ## 3. ⬜ `codex login --device-auth` end-to-end through ttyd
 
-- [ ] Opening the public domain prompts for basic auth and then lands in the tmux session.
+- [x] **ttyd basic auth works on the live public domain** (`https://codex-production-0eba.up.railway.app`
+      during testing): no creds → 401, wrong creds → 401, correct creds → 200 serving
+      `<title>ttyd - Terminal</title>`. The password was auto-generated at first boot and printed to
+      the deploy logs as designed (`[boot] browser terminal auth → user: codex password: …`).
+- [ ] Opening the public domain in a browser lands in the tmux session (needs a human browser).
 - [ ] `codex login --device-auth` runs in the browser terminal, prints a readable code + URL, and
       does not hang trying to open a browser (the `xdg-open` shim should cover this).
 - [ ] Approving at chatgpt.com completes the login; `codex login status` reports authenticated.

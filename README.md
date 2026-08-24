@@ -54,7 +54,7 @@ redeploy.
 | **Codex CLI** (`@openai/codex`, version-pinned) | `codex` (TUI), `codex exec` (headless), `codex resume` / `fork` |
 | **tmux** | your session survives a dropped connection, a closed browser tab, and a redeploy of *you* |
 | **ttyd** | serves that tmux session on the public domain, behind basic auth |
-| **bubblewrap** | Codex's Linux sandbox, so `workspace-write` mode is available if you want it |
+| **ripgrep, less, procps** | agent quality-of-life for searching and inspecting the box |
 | **git** + **SSH key** | clone/commit; an ed25519 key is generated on first boot (`~/.ssh/id_ed25519.pub`) |
 | **GitHub CLI** (`gh`) | `gh pr create`, `gh issue` — auto-authenticated from `GITHUB_TOKEN` |
 
@@ -69,7 +69,10 @@ redeploy.
   `config.toml`, `sessions/` and history all persist.
 - A default `config.toml` is seeded on **first boot only** with `approval_policy = "never"` and
   `sandbox_mode = "danger-full-access"` — the container *is* the sandbox. Edit it in the box; it is
-  never overwritten. See [`docs/USAGE.md`](docs/USAGE.md) to tighten it.
+  never overwritten.
+- **Codex's `workspace-write` sandbox does not work on Railway** — bubblewrap can't create a user
+  namespace there. `danger-full-access` is the only working mode; see
+  [`docs/USAGE.md`](docs/USAGE.md) for what to do if you need real isolation.
 
 See [`docs/USAGE.md`](docs/USAGE.md) for the walkthrough, [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 for how it's wired, [`docs/VERIFICATION.md`](docs/VERIFICATION.md) for what still needs proving on a

@@ -63,10 +63,11 @@
   weekly — and `--listen ws://0.0.0.0` has no built-in auth. Rejected deliberately.
 - **Version-pinned.** Codex ships several releases a week; `ARG CODEX_VERSION` keeps two deploys of
   the same commit identical. Bump it on purpose.
-- **The container is the sandbox.** Default config is `approval_policy = "never"` +
-  `sandbox_mode = "danger-full-access"`, because an approval prompt you have to babysit is the
-  fastest way to make a remote box feel unlike a local one. `bubblewrap` is installed anyway so
-  `workspace-write` remains a one-line config change.
+- **The container is the sandbox — and on Railway it has to be.** Default config is
+  `approval_policy = "never"` + `sandbox_mode = "danger-full-access"`. This started as a preference
+  (an approval prompt you have to babysit is the fastest way to make a remote box feel unlike a local
+  one) but live testing turned it into a requirement: **bubblewrap cannot create a user namespace in
+  a Railway container**, so `workspace-write` fails on every command. See `VERIFICATION.md` item 1.
 - **Secure public surface.** ttyd hands out a writable shell, so it is always behind basic auth with
   an auto-generated, volume-persisted password. Drop the public domain to go SSH-only.
 - **Volume-first persistence.** Codex keeps everything under one directory, so a single

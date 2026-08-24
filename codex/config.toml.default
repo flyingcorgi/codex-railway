@@ -14,10 +14,12 @@
 # reach the network inside this container. That is the point of a remote agent
 # box, but do not paste secrets in here that you would not give the agent.
 #
-# Want the tighter local-style behaviour instead? Set:
-#   sandbox_mode   = "workspace-write"
-#   approval_policy = "on-request"
-# (bubblewrap is installed in the image, so workspace-write is available.)
+# DO NOT switch to sandbox_mode = "workspace-write" on Railway — it does not
+# work. Codex's Linux sandbox needs bubblewrap, and bwrap cannot create a user
+# namespace inside a Railway container (verified: "Creating new namespace failed:
+# Operation not permitted"), so every sandboxed command fails. This is a platform
+# constraint, not a config mistake. danger-full-access is the only working mode
+# here — which is fine, because the container is already the isolation boundary.
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
