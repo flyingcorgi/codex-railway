@@ -1,8 +1,11 @@
 # Codex on Railway
 
-> **Status: pre-publish.** The image builds and the design is settled, but the four cold-start
-> unknowns in [`docs/VERIFICATION.md`](docs/VERIFICATION.md) must be signed off on a real deploy
-> before this goes to the marketplace.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/codex-cli-terminal-and-browser?referralCode=jk_FgY&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+> **Published** to the Railway marketplace as
+> [Codex CLI - Terminal and Browser](https://railway.com/deploy/codex-cli-terminal-and-browser).
+> Live results and what is still unproven are tracked in
+> [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
 A one-click, self-hosted home for **[OpenAI Codex CLI](https://github.com/openai/codex)** — the same
 `codex` you run locally, on a box that keeps working when your laptop sleeps.
@@ -67,9 +70,13 @@ redeploy.
   attaches to the same tmux session, so both doors show the same work.
 - `CODEX_HOME` points at `/workspace/codex` (and `~/.codex` is symlinked there), so `auth.json`,
   `config.toml`, `sessions/` and history all persist.
-- A default `config.toml` is seeded on **first boot only** with `approval_policy = "never"` and
+- A default `config.toml` is seeded on **first boot only** with `approval_policy = "on-request"`
+  (set `CODEX_APPROVAL_POLICY=never` before first boot for unattended operation) and
   `sandbox_mode = "danger-full-access"` — the container *is* the sandbox. Edit it in the box; it is
   never overwritten.
+- `[tui] animations = false` is seeded too, because Codex's status animation repaints often enough
+  to wipe text selections in the browser terminal
+  ([openai/codex#38017](https://github.com/openai/codex/issues/38017)).
 - **Codex's `workspace-write` sandbox does not work on Railway** — bubblewrap can't create a user
   namespace there. `danger-full-access` is the only working mode; see
   [`docs/USAGE.md`](docs/USAGE.md) for what to do if you need real isolation.
