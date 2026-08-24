@@ -56,4 +56,4 @@ variable if you would rather bill at API rates.
 
 One click gives you a persistent Codex box you can reach from a terminal or a browser, with a pinned
 agent version and credentials, repos and session history that outlive every redeploy. Source and
-docs: <https://github.com/yuting1214/codex-railway>.
+docs: [github.com/yuting1214/codex-railway](https://github.com/yuting1214/codex-railway).
