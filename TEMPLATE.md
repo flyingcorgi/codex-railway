@@ -12,10 +12,11 @@ One container runs the **actual Codex CLI**, not a reimplementation of it. `ttyd
 `tmux` session on a password-protected Railway domain, and `railway ssh --session codex` attaches to
 that very same session — so a dropped connection, a closed tab, or a switch from laptop to phone
 never loses your place. A `/workspace` volume keeps repos, `config.toml`, `auth.json` and your Codex
-session history across redeploys, so `codex resume` still works. `git`, the GitHub CLI and
-`bubblewrap` are preinstalled, and the Codex version is pinned so two deploys of the same commit
-build the same agent. Sign in with your ChatGPT plan via `codex login --device-auth`, or set an
-`OPENAI_API_KEY`.
+session history across redeploys, so `codex resume` still works. `git` and the GitHub CLI are
+preinstalled, and the Codex version is pinned so two deploys of the same commit build the same agent.
+The deploy form asks for no credentials at all — you authenticate inside the box the same way you do
+locally, with `codex login --device-auth` on your ChatGPT plan, or by adding an `OPENAI_API_KEY`
+variable if you would rather bill at API rates.
 
 ## Why Deploy Codex CLI on Railway?
 
@@ -28,8 +29,9 @@ build the same agent. Sign in with your ChatGPT plan via `codex login --device-a
   installing anything, anywhere.
 - **Persistent** — repos, auth and `codex resume` history sit on a volume, so a redeploy never logs
   you out or loses your working tree.
-- **Secure by default** — the browser terminal is behind HTTP basic auth with an auto-generated,
-  volume-persisted password; SSH is Railway-authenticated.
+- **Secure by default** — the browser terminal sits behind HTTP basic auth with a unique password
+  generated for your deploy and shown in your Variables tab; SSH is Railway-authenticated. Codex
+  runs with `approval_policy = "on-request"`, so the agent asks before it acts.
 
 ## Common Use Cases
 
