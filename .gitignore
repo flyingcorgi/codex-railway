@@ -1,0 +1,11 @@
+# Secrets — never commit real keys
+.env
+codex/.env
+*.local
+
+# Personal/local reference — never commit
+docs/COMPETITIVE-ANALYSIS.md
+
+# Logs / OS cruft
+*.log
+.DS_Store
