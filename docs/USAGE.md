@@ -52,6 +52,30 @@ terminal kills the TUI.
 deploy logs (`[boot] browser terminal auth → ...`). You land in the *same* tmux session — same
 scrollback, same running agent.
 
+### Copying text out of the browser terminal
+
+tmux runs with `mouse on` (so scrolling works), which means a plain drag is captured by **tmux**, not
+by the browser. You get a highlight, but it lives in a tmux buffer inside the container — your local
+clipboard never sees it. To select text the browser can actually copy, hold a modifier:
+
+| Platform | Select | Copy |
+|---|---|---|
+| macOS | **Option** + drag | ⌘C |
+| Windows / Linux | **Shift** + drag | Ctrl+Shift+C |
+
+If you'd rather drag without a modifier, turn tmux's mouse handling off for a moment — at the cost of
+scrolling until you turn it back on:
+
+```
+Ctrl-b : set -g mouse off      # plain drag now selects; Ctrl-b : set -g mouse on to restore
+```
+
+> The usual advice for this — tmux `set -g set-clipboard on`, which pushes copies to the client over
+> **OSC 52** — does *not* work here. ttyd 1.7.7's bundled xterm.js registers no OSC 52 handler, so
+> there is nothing on the browser side to receive the clipboard write. The modifier-drag above is the
+> real mechanism, and `-t macOptionClickForcesSelection=true` in the Dockerfile is what enables it on
+> macOS (xterm.js gates Option+drag behind that option and defaults it to false).
+
 ## 3. Working with repos
 
 Clone into `/workspace/repos` so your code persists across redeploys:
