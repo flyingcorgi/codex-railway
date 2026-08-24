@@ -1,0 +1,35 @@
+# Default Codex config for the Railway box.
+#
+# Seeded onto the volume at $CODEX_HOME/config.toml on FIRST BOOT ONLY — edit it
+# freely inside the box, redeploys will never overwrite your changes.
+# Full reference: https://github.com/openai/codex/blob/main/docs/config.md
+
+# ── Sandbox & approvals ─────────────────────────────────────────────────────
+# This whole container is disposable and isolated from your machine, so the
+# container *is* the sandbox. Running Codex unsandboxed inside it is the setting
+# that makes a remote box feel like a local session — otherwise every command
+# stops for an approval prompt you have to babysit.
+#
+# Trade-off, stated plainly: with these values the agent can run any command and
+# reach the network inside this container. That is the point of a remote agent
+# box, but do not paste secrets in here that you would not give the agent.
+#
+# Want the tighter local-style behaviour instead? Set:
+#   sandbox_mode   = "workspace-write"
+#   approval_policy = "on-request"
+# (bubblewrap is installed in the image, so workspace-write is available.)
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+# ── Model ───────────────────────────────────────────────────────────────────
+# Uncomment to pin a model; otherwise Codex uses its own default, which tracks
+# whatever is current for your plan.
+# model = "gpt-5.1-codex"
+
+# ── Credentials ─────────────────────────────────────────────────────────────
+# Codex can cache credentials in an OS keyring instead of auth.json. There is no
+# keyring in this container, and a keyring wouldn't survive a redeploy anyway —
+# so pin the file store explicitly rather than relying on "auto" to guess right.
+# auth.json then lives on the volume and your login persists.
+# Accepted values (0.149.1): "file", "keyring", "auto", "ephemeral".
+cli_auth_credentials_store = "file"
