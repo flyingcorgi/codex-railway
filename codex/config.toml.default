@@ -48,3 +48,24 @@ sandbox_mode = "danger-full-access"
 # auth.json then lives on the volume and your login persists.
 # Accepted values (0.149.1): "file", "keyring", "auto", "ephemeral".
 cli_auth_credentials_store = "file"
+
+# ── TUI ─────────────────────────────────────────────────────────────────────
+# Keep [tui] last: TOML puts every key after a table header inside that table,
+# so a top-level setting added below this line would silently become tui.*.
+
+[tui]
+# Animations off by default, because they break copy/paste in the browser
+# terminal — the door most people use on this box.
+#
+# The spinner/shimmer repaints at ~31 Hz. Every repaint makes xterm.js drop the
+# text selection, so a highlight vanishes about a second after you make it and
+# Cmd/Ctrl+C copies nothing. Upstream bug: openai/codex#38017, which names this
+# exact setting as the fix.
+#
+# It cannot be fixed on the terminal side: the usual answer is OSC 52
+# (tmux `set -g set-clipboard on`), but ttyd 1.7.7's bundled xterm.js registers
+# no OSC 52 handler, and 1.7.7 is the newest release — the OSC 52 pull requests
+# are still open upstream.
+#
+# Set to true if you would rather have the spinners and only copy over SSH.
+animations = false

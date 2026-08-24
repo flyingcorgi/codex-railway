@@ -54,27 +54,41 @@ scrollback, same running agent.
 
 ### Copying text out of the browser terminal
 
-tmux runs with `mouse on` (so scrolling works), which means a plain drag is captured by **tmux**, not
-by the browser. You get a highlight, but it lives in a tmux buffer inside the container — your local
-clipboard never sees it. To select text the browser can actually copy, hold a modifier:
+Two separate things had to be fixed to make this work, and both ship configured:
+
+**1. Making a selection at all.** tmux runs with `mouse on` (so scrolling works), so a plain drag goes
+to **tmux**, not the browser — you get a highlight, but it is tmux's own, living in a buffer inside
+the container that your clipboard never sees. Hold a modifier to force a real browser selection:
 
 | Platform | Select | Copy |
 |---|---|---|
 | macOS | **Option** + drag | ⌘C |
 | Windows / Linux | **Shift** + drag | Ctrl+Shift+C |
 
-If you'd rather drag without a modifier, turn tmux's mouse handling off for a moment — at the cost of
-scrolling until you turn it back on:
+On macOS this only works because the image passes `-t macOptionClickForcesSelection=true` to ttyd;
+xterm.js gates Option+drag behind that option and defaults it to *false*.
 
+**2. Making the selection survive.** Codex's status animation repaints at roughly 31 Hz, and every
+repaint makes xterm.js drop the selection — the highlight vanishes about a second after you make it
+and the copy comes back empty. The seeded config therefore ships:
+
+```toml
+[tui]
+animations = false
 ```
-Ctrl-b : set -g mouse off      # plain drag now selects; Ctrl-b : set -g mouse on to restore
-```
+
+This is upstream bug [openai/codex#38017](https://github.com/openai/codex/issues/38017), which names
+that setting as the fix. Turn it back on if you prefer the spinners and only copy over SSH.
+
+> **Already-running boxes need this applied by hand.** `config.toml` is seeded on *first boot only*,
+> so a box created before this change keeps its old config. Add the `[tui]` block to
+> `$CODEX_HOME/config.toml` yourself (put it at the **end** — in TOML every key after a table header
+> belongs to that table) and restart `codex`.
 
 > The usual advice for this — tmux `set -g set-clipboard on`, which pushes copies to the client over
-> **OSC 52** — does *not* work here. ttyd 1.7.7's bundled xterm.js registers no OSC 52 handler, so
-> there is nothing on the browser side to receive the clipboard write. The modifier-drag above is the
-> real mechanism, and `-t macOptionClickForcesSelection=true` in the Dockerfile is what enables it on
-> macOS (xterm.js gates Option+drag behind that option and defaults it to false).
+> **OSC 52** — does *not* work here. ttyd 1.7.7's bundled xterm.js registers no OSC 52 handler, and
+> 1.7.7 is the latest release; the OSC 52 pull requests are still open upstream. There is nothing on
+> the browser side to receive the clipboard write, so the two mechanisms above are the whole fix.
 
 ## 3. Working with repos
 
