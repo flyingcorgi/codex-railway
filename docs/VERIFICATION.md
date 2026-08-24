@@ -121,10 +121,38 @@ as independent sessions and drop the "same session" claim.
 
 **Fallback if broken:** document the API-key path as primary and device-auth as best-effort.
 
-## 4. ⬜ `codex resume` after a redeploy
+## 3b. ✅ Device auth verified end-to-end (live, ChatGPT plan)
 
-- [ ] Start a session, redeploy the service, reconnect: `codex resume` lists the prior session and
-      restores it.
+- [x] Browser terminal opened on the public domain, TUI rendered correctly (box-drawing, colour,
+      `directory: /workspace/repos`), `codex login --device-auth` completed against a real ChatGPT
+      account, and the agent answered real prompts.
+- [x] **This also closes the last gap in item 1:** the normal agent exec path works fine under
+      `sandbox_mode = "danger-full-access"`. Only the `codex sandbox` subcommand is unusable.
+- [x] `codex login status` → `Logged in using ChatGPT`.
+- [x] `auth.json` is on the **volume** (`/workspace/codex/auth.json`, 4200 B, mode 600) — so
+      `cli_auth_credentials_store = "file"` took effect, not a keyring.
+- [x] Login **survived a redeploy**: `[boot] codex authenticated (existing login on volume).`
+
+## 3c. ❌→✅ SECURITY: `shell_snapshots` leaked all service variables — fixed
+
+Confirmed on the live box, not just from source: `$CODEX_HOME/shell_snapshots/*.sh` were **mode 0644
+(world-readable)** on the persistent volume and contained `CODEX_WEB_PASSWORD` and 22 `RAILWAY_*`
+variables in plaintext. Any `OPENAI_API_KEY` / `GITHUB_TOKEN` would be there too. Codex writes these
+via `declare -xp` and never reuses them across runs.
+
+**Fixed** in `entrypoint.sh` (commit `bc1d5e1`): `shell_snapshots/` and `packages/` are pruned every
+boot. ⬜ **Not yet verified live** — the deploy carrying this fix has not run.
+
+## 4. 🟡 `codex resume` after a redeploy — data confirmed, picker not yet exercised
+
+- [x] **Session rollouts survive a redeploy on the volume.** After two real conversations and a
+      redeploy, both files were still present:
+      `/workspace/codex/sessions/2026/08/24/rollout-2026-08-24T{05-04-49,08-35-35}-*.jsonl`.
+      `sessions/*.jsonl` is the source of truth; the SQLite DBs are a derived cache rebuilt by
+      startup backfill, so this is the data that matters.
+- [ ] **Remaining:** exercise the picker itself — `codex resume` needs a TTY (`Error: stdin is not a
+      terminal` from a tool session), so run it from the browser terminal or an interactive
+      `railway ssh --session codex` and confirm the pre-redeploy conversation restores.
 - [ ] Confirm which paths under `$CODEX_HOME` are actually required (`sessions/`,
       `session_index.jsonl`, which SQLite DBs) — the whole directory is persisted, so this is about
       knowing what matters, not what to add.
@@ -136,6 +164,41 @@ as independent sessions and drop the "same session" claim.
 
 **Fallback if broken:** exclude the offending subpaths from the volume and document reduced
 session persistence.
+
+---
+
+---
+
+## Handoff — what the next deploy must verify
+
+Commit `bc1d5e1` (on-request default + `shell_snapshots` pruning) is **committed but never
+deployed**. On the next deploy, check:
+
+- [ ] Boot log shows `[boot] existing config.toml kept (approval_policy = "never")` on the existing
+      volume — proving user edits are not clobbered.
+- [ ] On a **fresh volume**, boot log shows
+      `[boot] seeding … (first boot, approval_policy=on-request)` and the TUI shows **no YOLO
+      banner**.
+- [ ] Setting `CODEX_APPROVAL_POLICY=never` on a fresh volume seeds `never`; setting a garbage value
+      logs the warning and falls back to `on-request` instead of producing a box that won't start.
+- [ ] `$CODEX_HOME/shell_snapshots` is **absent** after boot.
+- [ ] `codex resume` restores a pre-redeploy conversation from an interactive terminal.
+- [ ] With `OPENAI_API_KEY` set *and* an existing ChatGPT login, boot logs say the existing login was
+      left alone (no silent switch to API billing).
+
+### ⚠️ Gotcha that cost time: `railway up` deploys the COMMITTED tree
+
+Uncommitted working-tree edits are **not** uploaded. A deploy ran, built a new image, reported
+SUCCESS and RUNNING — and the container still had the previous `entrypoint.sh`, byte-identical to
+`HEAD`. **Commit before `railway up`**, and verify the running container actually has your change
+(e.g. `railway ssh -s <svc> -- wc -c /usr/local/bin/entrypoint.sh`) rather than trusting deploy
+status.
+
+### Scratch project
+
+`codex-verify-scratch` (project `11856be9-c5ad-459b-8206-f284171b6fc2`, service `codex`) is **left
+running** at the user's request, with a real ChatGPT login on its volume and
+`approval_policy = "never"` still seeded from the original first boot. It bills while it runs.
 
 ---
 
