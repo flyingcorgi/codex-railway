@@ -38,10 +38,39 @@ ln -sfn /workspace/codex /root/.codex
 ln -sfn /workspace/.ssh  /root/.ssh
 
 # Seed the default config on first boot only — never clobber user edits.
+# approval_policy comes from CODEX_APPROVAL_POLICY so deployers can choose their
+# posture in Railway Variables without SSHing in. Codex 0.149.x accepts exactly
+# two values; anything else would make Codex fail to start, so validate here
+# rather than shipping a box that won't boot.
+CODEX_APPROVAL_POLICY="${CODEX_APPROVAL_POLICY:-on-request}"
+case "$CODEX_APPROVAL_POLICY" in
+    on-request|never) ;;
+    *)
+        echo "[boot] WARNING: CODEX_APPROVAL_POLICY='${CODEX_APPROVAL_POLICY}' is not valid"
+        echo "[boot]          (expected 'on-request' or 'never') — falling back to 'on-request'."
+        CODEX_APPROVAL_POLICY="on-request"
+        ;;
+esac
+
 if [ ! -f "$CODEX_HOME/config.toml" ]; then
-    echo "[boot] seeding default $CODEX_HOME/config.toml (first boot)..."
-    cp /opt/codex/config.toml.default "$CODEX_HOME/config.toml"
+    echo "[boot] seeding $CODEX_HOME/config.toml (first boot, approval_policy=${CODEX_APPROVAL_POLICY})..."
+    sed "s/^approval_policy = .*/approval_policy = \"${CODEX_APPROVAL_POLICY}\"/" \
+        /opt/codex/config.toml.default > "$CODEX_HOME/config.toml"
+else
+    CURRENT_POLICY="$(grep -m1 '^approval_policy' "$CODEX_HOME/config.toml" || echo 'unset')"
+    echo "[boot] existing config.toml kept (${CURRENT_POLICY})."
 fi
+
+# ── Prune volume churn ──────────────────────────────────────
+# shell_snapshots/: Codex dumps every exported environment variable to disk here
+# (`declare -xp`, excluding only PWD/OLDPWD). On Railway that means your service
+# variables — API keys, tokens, the web password — written in plaintext onto the
+# volume. They're never reused across runs and Codex GCs them after 3 days, so
+# there is no reason to carry them across a redeploy.
+#
+# packages/: retained standalone release archives. Unused on an npm install like
+# ours, but it has no GC and can reach ~1 GB if the updater ever populates it.
+rm -rf "$CODEX_HOME/shell_snapshots" "$CODEX_HOME/packages"
 
 # ── Git / SSH bootstrap ─────────────────────────────────────
 # Generate an ed25519 key on first boot (persists via the volume).

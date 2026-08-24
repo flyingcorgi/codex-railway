@@ -20,7 +20,20 @@
 # Operation not permitted"), so every sandboxed command fails. This is a platform
 # constraint, not a config mistake. danger-full-access is the only working mode
 # here — which is fine, because the container is already the isolation boundary.
-approval_policy = "never"
+# approval_policy is seeded from the CODEX_APPROVAL_POLICY Railway variable on
+# first boot (default "on-request"; the only other accepted value is "never").
+#
+# Why not "never" by default: this box stores credentials that reach OUTSIDE the
+# container — your ChatGPT login in auth.json, the generated SSH key you add to
+# GitHub, and GITHUB_TOKEN if you set it. Network egress can't be restricted here
+# (no sandbox, see below), so with approvals off, a prompt injection in any repo
+# or page the agent reads can exfiltrate them with no friction, and the volume
+# means a redeploy doesn't undo it. "on-request" puts a human in that path.
+#
+# Set CODEX_APPROVAL_POLICY=never if you want unattended YOLO operation and
+# accept that trade. Editing this file by hand works too — it is never
+# overwritten once seeded.
+approval_policy = "on-request"
 sandbox_mode = "danger-full-access"
 
 # ── Model ───────────────────────────────────────────────────────────────────

@@ -89,13 +89,27 @@ codex exec "summarize what this repo does and list the entry points"
 
 ## 6. Sandbox & approvals
 
-The seeded `$CODEX_HOME/config.toml` ships `approval_policy = "never"` and
-`sandbox_mode = "danger-full-access"`. The container is disposable and isolated from your machine, so
-the container *is* the sandbox — and an approval prompt you have to babysit is what makes a remote
-box feel unlike a local one.
+The seeded `$CODEX_HOME/config.toml` ships `approval_policy = "on-request"` and
+`sandbox_mode = "danger-full-access"`. Set `CODEX_APPROVAL_POLICY=never` in Railway Variables *before
+first boot* if you want unattended "YOLO mode" instead — or edit `config.toml` in the box at any time.
 
-The trade-off, stated plainly: the agent can run any command and reach the network **inside this
-container**. Don't leave secrets in the box that you wouldn't hand the agent.
+**Why approvals are on by default.** It's tempting to say "the container is disposable, so let the
+agent do anything." That's only half true. This box stores credentials that reach **outside** the
+container:
+
+| In the box | Reaches |
+|---|---|
+| `$CODEX_HOME/auth.json` | your real ChatGPT account |
+| `/workspace/.ssh/id_ed25519` | whatever GitHub access you granted that key |
+| `GITHUB_TOKEN` (if set) | your GitHub account |
+
+Codex's sandbox can't restrict network access here (see below), so with `approval_policy = "never"` a
+prompt injection in any repo, issue, or web page the agent reads can exfiltrate all three with no
+friction — and because they live on the volume, a redeploy doesn't undo it. `on-request` puts a human
+in that path.
+
+If you do run with `never`, treat the box as holding live secrets: prefer a fine-scoped
+`GITHUB_TOKEN` over a broad one, and don't point it at repos you can't afford to have force-pushed.
 
 **Don't switch `sandbox_mode` to `workspace-write` here — it cannot work on Railway.** Codex's Linux
 sandbox is implemented with `bubblewrap`, and bwrap can't create a user namespace inside a Railway
