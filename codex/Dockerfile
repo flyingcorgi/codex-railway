@@ -61,8 +61,7 @@ RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open \
 RUN mkdir -p /run/sshd /root/.ssh \
     && chmod 700 /root/.ssh \
     && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
-    && sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
-    && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    && sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
 # Default Codex config, seeded onto the volume on first boot only (never
 # overwrites your edits). See entrypoint.sh.
@@ -80,16 +79,6 @@ ENV PORT=8080
 EXPOSE 8080 22
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-# Main process = ttyd serving a tmux session on the public Railway domain
-# (basic-auth protected). `tmux new -A -s codex` attaches to the existing
-# session if there is one, so closing the browser tab never kills your work —
-# and `railway ssh --session codex` lands you in that *same* session.
-#
-# macOptionClickForcesSelection makes text selectable on macOS. tmux runs with
-# `mouse on`, so xterm.js hands drags to tmux instead of selecting text, and
-# xterm.js only overrides that for `shiftKey` off-Mac but for `altKey` AND this
-# option on Mac — which defaults to false. Without it a Mac user can highlight
-# (that's tmux's own selection, stuck in a server-side buffer) but never copy.
-# OSC 52 is not an alternative here: ttyd 1.7.7 registers no handler for it.
-CMD ["bash", "-lc", "exec sshd -D -e & ttyd --port ${PORT:-8080} --writable --credential \"${CODEX_WEB_USERNAME}:${CODEX_WEB_PASSWORD}\" -t fontSize=14 -t macOptionClickForcesSelection=true -t 'titleFixed=codex @ railway' tmux new -A -s codex"]
+# Main process runs both SSH and ttyd in the background
+CMD ["bash", "-lc", "exec /usr/sbin/sshd -D -e 2>&1 & exec ttyd --port ${PORT:-8080} --writable --credential \"${CODEX_WEB_USERNAME}:${CODEX_WEB_PASSWORD}\" -t fontSize=14 -t macOptionClickForcesSelection=true -t 'titleFixed=codex @ railway' tmux new -A -s codex"]
 
