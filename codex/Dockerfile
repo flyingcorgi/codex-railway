@@ -12,7 +12,7 @@ ARG TTYD_VERSION=1.7.7
 # sandbox), locales (UTF-8 box-drawing in the TUI), less/ripgrep (agent quality
 # of life).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git openssh-client ca-certificates curl gnupg \
+        git openssh-client openssh-server ca-certificates curl gnupg \
         tmux bubblewrap locales less ripgrep procps \
     && rm -rf /var/lib/apt/lists/*
 
@@ -57,6 +57,13 @@ RUN npm install -g "@openai/codex@${CODEX_VERSION}" \
 RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open \
     && chmod +x /usr/local/bin/xdg-open
 
+# SSH Server setup — enable persistent SSH access to the container
+RUN mkdir -p /run/sshd /root/.ssh \
+    && chmod 700 /root/.ssh \
+    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
+    && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+
 # Default Codex config, seeded onto the volume on first boot only (never
 # overwrites your edits). See entrypoint.sh.
 COPY config.toml.default /opt/codex/config.toml.default
@@ -70,7 +77,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # ttyd listens here; Railway maps the public domain to $PORT.
 ENV PORT=8080
-EXPOSE 8080
+EXPOSE 8080 22
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 # Main process = ttyd serving a tmux session on the public Railway domain
@@ -84,4 +91,5 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 # option on Mac — which defaults to false. Without it a Mac user can highlight
 # (that's tmux's own selection, stuck in a server-side buffer) but never copy.
 # OSC 52 is not an alternative here: ttyd 1.7.7 registers no handler for it.
-CMD ["bash", "-lc", "exec ttyd --port ${PORT:-8080} --writable --credential \"${CODEX_WEB_USERNAME}:${CODEX_WEB_PASSWORD}\" -t fontSize=14 -t macOptionClickForcesSelection=true -t 'titleFixed=codex @ railway' tmux new -A -s codex"]
+CMD ["bash", "-lc", "exec sshd -D -e & ttyd --port ${PORT:-8080} --writable --credential \"${CODEX_WEB_USERNAME}:${CODEX_WEB_PASSWORD}\" -t fontSize=14 -t macOptionClickForcesSelection=true -t 'titleFixed=codex @ railway' tmux new -A -s codex"]
+
