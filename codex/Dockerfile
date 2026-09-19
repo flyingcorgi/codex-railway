@@ -72,13 +72,13 @@ COPY tmux.conf /root/.tmux.conf
 
 WORKDIR /workspace
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY startup.sh /usr/local/bin/startup.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/startup.sh
 
 # ttyd listens here; Railway maps the public domain to $PORT.
 ENV PORT=8080
 EXPOSE 8080 22
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-# Main process runs both SSH and ttyd in the background
-CMD ["bash", "-lc", "exec /usr/sbin/sshd -D -e 2>&1 & exec ttyd --port ${PORT:-8080} --writable --credential \"${CODEX_WEB_USERNAME}:${CODEX_WEB_PASSWORD}\" -t fontSize=14 -t macOptionClickForcesSelection=true -t 'titleFixed=codex @ railway' tmux new -A -s codex"]
+CMD ["/usr/local/bin/startup.sh"]
 
